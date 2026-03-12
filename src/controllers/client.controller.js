@@ -85,7 +85,7 @@ exports.getClientById = async (req, res) => {
 // ✅ CREATE NEW CLIENT
 exports.createClient = async (req, res) => {
   try {
-    const { name, url, status, showOnHomepage } = req.body;
+    const { name, url, altText, status, showOnHomepage } = req.body;
 
     if (!req.file) {
       return res.status(400).json({
@@ -100,6 +100,7 @@ exports.createClient = async (req, res) => {
       name,
       url,
       image: imagePath,
+      altText: altText || "Client Logo",
       status: status || "Active",
       showOnHomepage: showOnHomepage === "true" || showOnHomepage === true,
     });
@@ -125,7 +126,7 @@ exports.createClient = async (req, res) => {
 // ✅ UPDATE CLIENT
 exports.updateClient = async (req, res) => {
   try {
-    const { name, url, status, showOnHomepage } = req.body;
+    const { name, url, altText, status, showOnHomepage } = req.body;
 
     const client = await Client.findById(req.params.id);
 
@@ -151,6 +152,7 @@ exports.updateClient = async (req, res) => {
     // Update fields
     client.name = name || client.name;
     client.url = url || client.url;
+    client.altText = altText || client.altText;
     client.status = status || client.status;
     client.showOnHomepage =
       showOnHomepage === "true" || showOnHomepage === true;

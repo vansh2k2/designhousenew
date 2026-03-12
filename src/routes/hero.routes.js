@@ -22,12 +22,12 @@ const storage = multer.diskStorage({
 
 const upload = multer({
   storage: storage,
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
   fileFilter: function (req, file, cb) {
     const allowedTypes = /jpeg|jpg|png|webp/;
     const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
     const mimetype = allowedTypes.test(file.mimetype);
-    
+
     if (mimetype && extname) {
       return cb(null, true);
     } else {
@@ -75,7 +75,7 @@ router.get('/active', async (req, res) => {
 // ✅ Create Hero Slide with Schedule
 router.post('/create', upload.single('image'), async (req, res) => {
   try {
-    const { subtitle, title, highlight, description, order, isActive, schedule } = req.body;
+    const { subtitle, title, highlight, description, order, isActive, schedule, button1Name, button1Url, button2Name, button2Url, altText } = req.body;
 
     if (!req.file) {
       return res.status(400).json({
@@ -88,10 +88,15 @@ router.post('/create', upload.single('image'), async (req, res) => {
 
     const slideData = {
       image: imagePath,
+      altText: altText || "Hero Image",
       subtitle,
       title,
       highlight,
       description,
+      button1Name: button1Name || "View Our Projects",
+      button1Url: button1Url || "/projects-list",
+      button2Name: button2Name || "Get Free Consultation",
+      button2Url: button2Url || "/contact-list",
       order: order || 0,
       isActive: isActive !== undefined ? isActive : true
     };
@@ -128,10 +133,15 @@ router.post('/create', upload.single('image'), async (req, res) => {
 router.put('/update/:id', upload.single('image'), async (req, res) => {
   try {
     const { id } = req.params;
-    const { subtitle, title, highlight, description, order, isActive, schedule } = req.body;
+    const { subtitle, title, highlight, description, order, isActive, schedule, button1Name, button1Url, button2Name, button2Url, altText } = req.body;
+
+    console.log(`🔄 UPDATE HERO SLIDE: ${id}`);
+    console.log("Body:", req.body);
+    console.log("File:", req.file);
 
     const slide = await HeroSlide.findById(id);
     if (!slide) {
+      console.log(`❌ Slide not found: ${id}`);
       return res.status(404).json({
         success: false,
         message: 'Hero slide not found'
@@ -140,9 +150,14 @@ router.put('/update/:id', upload.single('image'), async (req, res) => {
 
     // Update fields
     if (subtitle) slide.subtitle = subtitle;
+    if (altText) slide.altText = altText;
     if (title) slide.title = title;
     if (highlight) slide.highlight = highlight;
     if (description) slide.description = description;
+    if (button1Name) slide.button1Name = button1Name;
+    if (button1Url) slide.button1Url = button1Url;
+    if (button2Name) slide.button2Name = button2Name;
+    if (button2Url) slide.button2Url = button2Url;
     if (order !== undefined) slide.order = order;
     if (isActive !== undefined) slide.isActive = isActive;
 

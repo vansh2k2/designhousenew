@@ -5,6 +5,11 @@ const heroSlideSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
+  altText: {
+    type: String,
+    required: false,
+    default: "Hero Image"
+  },
   subtitle: {
     type: String,
     required: true,
@@ -20,6 +25,22 @@ const heroSlideSchema = new mongoose.Schema({
   description: {
     type: String,
     required: true,
+  },
+  button1Name: {
+    type: String,
+    default: "View Our Projects",
+  },
+  button1Url: {
+    type: String,
+    default: "/projects-list",
+  },
+  button2Name: {
+    type: String,
+    default: "Get Free Consultation",
+  },
+  button2Url: {
+    type: String,
+    default: "/contact-list",
   },
   order: {
     type: Number,

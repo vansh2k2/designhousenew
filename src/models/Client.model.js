@@ -17,6 +17,11 @@ const clientSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    altText: {
+      type: String,
+      required: false,
+      default: "Client Logo",
+    },
     status: {
       type: String,
       enum: ["Active", "Inactive"],

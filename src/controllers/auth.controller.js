@@ -66,10 +66,14 @@ exports.loginAdmin = async (req, res) => {
     await admin.save();
 
     const token = jwt.sign(
-      { id: admin._id, username: admin.username },
+      {
+        id: admin._id,
+        role: admin.role,
+      },
       process.env.JWT_SECRET,
       { expiresIn: "7d" }
     );
+
 
     return res.json({
       success: true,
@@ -79,6 +83,23 @@ exports.loginAdmin = async (req, res) => {
         id: admin._id,
         username: admin.username,
         email: admin.email,
+      },
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// ✅ Admin Verify (Token checking)
+exports.verifyAdmin = async (req, res) => {
+  try {
+    // req.user is already set by protect middleware
+    return res.json({
+      success: true,
+      admin: {
+        id: req.user._id,
+        username: req.user.username,
+        email: req.user.email,
       },
     });
   } catch (error) {

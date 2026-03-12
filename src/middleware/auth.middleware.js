@@ -1,22 +1,51 @@
 const jwt = require("jsonwebtoken");
+const Admin = require("../models/Admin.model");
 
-const protect = (req, res, next) => {
+const protect = async (req, res, next) => {
   try {
-    const authHeader = req.headers.authorization;
+    let token;
 
-    // ✅ token format: Bearer TOKEN
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      return res.status(401).json({ success: false, message: "Not Authorized" });
+    if (
+      req.headers.authorization &&
+      req.headers.authorization.startsWith("Bearer")
+    ) {
+      token = req.headers.authorization.split(" ")[1];
+    } else if (req.cookies?.adminToken) {
+      token = req.cookies.adminToken;
     }
 
-    const token = authHeader.split(" ")[1];
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: "Not authorized",
+      });
+    }
+
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    req.admin = decoded; // { id, email }
+    const admin = await Admin.findById(decoded.id).select("-password");
+    if (!admin || !admin.isActive) {
+      return res.status(401).json({
+        success: false,
+        message: "Admin not found or inactive",
+      });
+    }
+
+    req.user = admin;
     next();
   } catch (err) {
-    return res.status(401).json({ success: false, message: "Invalid Token" });
+    next(err); // ✅ IMPORTANT
   }
 };
 
-module.exports = protect;
+const adminOnly = (req, res, next) => {
+  if (!req.user) {
+    return res.status(401).json({ success: false });
+  }
+  next();
+};
+
+module.exports = {
+  protect,
+  adminOnly,
+};

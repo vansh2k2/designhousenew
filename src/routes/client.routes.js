@@ -5,7 +5,7 @@ const path = require("path");
 const fs = require("fs");
 
 const clientController = require("../controllers/client.controller");
-const protect = require("../middleware/auth.middleware"); // ✅ FIX IMPORT
+const { protect } = require("../middleware/auth.middleware"); // ✅ CORRECT IMPORT
 
 // ✅ CREATE UPLOADS FOLDER IF NOT EXISTS
 const uploadDir = path.join(__dirname, "../../uploads/clients");
@@ -29,7 +29,7 @@ const storage = multer.diskStorage({
 
 const upload = multer({
   storage,
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
   fileFilter: (req, file, cb) => {
     const allowedTypes = /jpeg|jpg|png|gif|webp|svg/;
     const extname = allowedTypes.test(

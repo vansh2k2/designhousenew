@@ -13,7 +13,7 @@ const adminSchema = new mongoose.Schema(
       unique: true, 
       trim: true,
       lowercase: true,
-      sparse: true  // ✅ Email optional ho jayega
+      sparse: true
     },
     password: { 
       type: String, 
@@ -28,6 +28,10 @@ const adminSchema = new mongoose.Schema(
       type: String,
       enum: ['Active', 'Inactive'],
       default: 'Active'
+    },
+    isActive: {  // ✅ ADD THIS FIELD
+      type: Boolean,
+      default: true
     },
     lastLogin: {
       type: Date,
