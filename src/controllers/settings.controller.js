@@ -2,6 +2,8 @@ const Settings = require('../models/Settings.model');
 const fs = require('fs');
 const path = require('path');
 
+const { logActivity } = require('./activityLog.controller');
+
 // Get settings
 exports.getSettings = async (req, res) => {
     try {
@@ -33,6 +35,7 @@ exports.getSettings = async (req, res) => {
 exports.updateSettings = async (req, res) => {
     try {
         let settings = await Settings.findOne();
+        const updatedBy = req.body.updatedBy || "Admin User";
 
         if (!settings) {
             settings = new Settings();
@@ -66,8 +69,13 @@ exports.updateSettings = async (req, res) => {
         if (req.body.mapIframe !== undefined) {
             settings.mapIframe = req.body.mapIframe;
         }
+        if (req.body.otpSettings) {
+            settings.otpSettings = JSON.parse(req.body.otpSettings);
+        }
 
         await settings.save();
+
+        await logActivity(updatedBy, "Updated", "Settings", "Updated system configurations");
 
         res.status(200).json({
             success: true,

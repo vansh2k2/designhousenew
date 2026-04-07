@@ -21,7 +21,6 @@ const adminSchema = new mongoose.Schema(
     },
     role: {
       type: String,
-      enum: ['Super Admin', 'Content Manager', 'Editor'],
       default: 'Editor'
     },
     status: {

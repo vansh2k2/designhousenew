@@ -1,6 +1,9 @@
 const CareerApplication = require('../models/CareerApplication.model');
+const { logActivity } = require('./activityLog.controller');
 const path = require('path');
 const fs = require('fs');
+const emailService = require('../services/email.service');
+const whatsappService = require('../services/whatsapp.service');
 
 // ✅ Submit career application (Public - from frontend)
 exports.submitApplication = async (req, res) => {
@@ -33,6 +36,24 @@ exports.submitApplication = async (req, res) => {
     });
 
     await application.save();
+
+    // ✅ SEND NOTIFICATIONS (Async)
+    const notificationData = {
+      name,
+      email,
+      phone,
+      subject: subject || 'General Application',
+      message,
+      document: documentPath
+    };
+
+    // Admin notifications (to career specific admin)
+    emailService.sendCareerBookingEmail(notificationData);
+    whatsappService.sendCareerBookingWhatsApp(notificationData);
+
+    // Candidate notifications
+    emailService.sendCareerConfirmationEmail(notificationData);
+    whatsappService.sendCareerConfirmationWhatsApp(notificationData);
 
     res.status(201).json({
       success: true,
@@ -160,11 +181,16 @@ exports.updateApplicationStatus = async (req, res) => {
       });
     }
 
+    const updatedBy = req.body.updatedBy || "Admin User";
     const application = await CareerApplication.findByIdAndUpdate(
       req.params.id,
-      { status },
+      { status, updatedBy },
       { new: true }
     );
+
+    if (application) {
+      await logActivity(req.body.updatedBy || "Admin User", "Updated", "Careers", `Updated application status for: ${application.name}`);
+    }
 
     if (!application) {
       return res.status(404).json({
@@ -200,6 +226,9 @@ exports.deleteApplication = async (req, res) => {
         message: 'Application not found'
       });
     }
+
+    const updatedBy = req.query.updatedBy || req.body.updatedBy || "Admin User";
+    await logActivity(updatedBy, "Deleted", "Careers", `Deleted career application from: ${application.name}`);
 
     // Delete associated file if exists
     if (application.document) {
@@ -252,6 +281,9 @@ exports.bulkDeleteApplications = async (req, res) => {
     // Delete applications
     const result = await CareerApplication.deleteMany({ _id: { $in: ids } });
 
+    const updatedBy = req.body.updatedBy || req.query.updatedBy || "Admin User";
+    await logActivity(updatedBy, "Deleted (Bulk)", "Careers", `Bulk deleted ${result.deletedCount} career applications`);
+
     res.status(200).json({
       success: true,
       message: `${result.deletedCount} application(s) deleted successfully`,
@@ -288,10 +320,13 @@ exports.bulkUpdateStatus = async (req, res) => {
       });
     }
 
+    const updatedBy = req.body.updatedBy || "Admin User";
     const result = await CareerApplication.updateMany(
       { _id: { $in: ids } },
-      { status }
+      { status, updatedBy }
     );
+    
+    await logActivity(updatedBy, "Updated Status (Bulk)", "Careers", `Bulk updated ${result.modifiedCount} applications to ${status}`);
 
     res.status(200).json({
       success: true,

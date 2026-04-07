@@ -1,4 +1,5 @@
 const Client = require("../models/Client.model");
+const { logActivity } = require("./activityLog.controller");
 const fs = require("fs");
 const path = require("path");
 
@@ -98,12 +99,15 @@ exports.createClient = async (req, res) => {
 
     const client = await Client.create({
       name,
-      url,
+      url: url || "#",
       image: imagePath,
       altText: altText || "Client Logo",
       status: status || "Active",
       showOnHomepage: showOnHomepage === "true" || showOnHomepage === true,
+      updatedBy: req.body.updatedBy || "Admin User"
     });
+
+    await logActivity(req.body.updatedBy || "Admin User", "Created", "Client", `Added client: ${client.name}`);
 
     res.status(201).json({
       success: true,
@@ -127,7 +131,6 @@ exports.createClient = async (req, res) => {
 exports.updateClient = async (req, res) => {
   try {
     const { name, url, altText, status, showOnHomepage } = req.body;
-
     const client = await Client.findById(req.params.id);
 
     if (!client) {
@@ -141,23 +144,35 @@ exports.updateClient = async (req, res) => {
     // Update image if new file uploaded
     if (req.file) {
       // Delete old image
-      const oldImagePath = path.join(__dirname, "../../", client.image);
-      if (fs.existsSync(oldImagePath)) {
-        fs.unlinkSync(oldImagePath);
+      try {
+        const oldImageRelativePath = client.image.startsWith('/') ? client.image.substring(1) : client.image;
+        const oldImagePath = path.join(__dirname, "../../", oldImageRelativePath);
+        
+        if (fs.existsSync(oldImagePath)) {
+          fs.unlinkSync(oldImagePath);
+        }
+      } catch (err) {
+        console.error("Error deleting old image:", err.message);
       }
 
       client.image = `/uploads/clients/${req.file.filename}`;
     }
 
-    // Update fields
-    client.name = name || client.name;
-    client.url = url || client.url;
-    client.altText = altText || client.altText;
-    client.status = status || client.status;
-    client.showOnHomepage =
-      showOnHomepage === "true" || showOnHomepage === true;
+    // Update fields only if they are provided in req.body
+    if (name !== undefined) client.name = name;
+    if (url !== undefined) client.url = url;
+    if (altText !== undefined) client.altText = altText;
+    if (status !== undefined) client.status = status;
+    
+    if (showOnHomepage !== undefined) {
+      client.showOnHomepage = showOnHomepage === "true" || showOnHomepage === true;
+    }
+    
+    client.updatedBy = req.body.updatedBy || "Admin User";
 
     await client.save();
+    
+    await logActivity(req.body.updatedBy || "Admin User", "Updated", "Client", `Updated client: ${client.name}`);
 
     res.status(200).json({
       success: true,
@@ -166,7 +181,7 @@ exports.updateClient = async (req, res) => {
     });
   } catch (error) {
     if (req.file) fs.unlinkSync(req.file.path);
-
+    console.error("Update Client Error:", error);
     res.status(500).json({
       success: false,
       message: error.message,
@@ -192,7 +207,10 @@ exports.deleteClient = async (req, res) => {
       fs.unlinkSync(imagePath);
     }
 
+    const updatedBy = req.query.updatedBy || req.body.updatedBy || "Admin User";
     await Client.findByIdAndDelete(req.params.id);
+    
+    await logActivity(updatedBy, "Deleted", "Client", `Deleted client: ${client.name}`);
 
     res.status(200).json({
       success: true,

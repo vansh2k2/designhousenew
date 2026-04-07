@@ -1,4 +1,5 @@
 const Blog = require("../models/Blog.model");
+const { logActivity } = require('./activityLog.controller');
 const path = require("path");
 const fs = require("fs");
 
@@ -146,6 +147,7 @@ exports.createBlog = async (req, res) => {
       schemaMarkup: (schemaMarkup && schemaMarkup.trim()) || "",
       h1Title: (h1Title && h1Title.trim()) || "",
       metaKeywords: (metaKeywords && metaKeywords.trim()) || "",
+      updatedBy: req.body.updatedBy || "Admin User",
     };
 
     console.log("✅ Blog data to create:", JSON.stringify(blogData, null, 2));
@@ -156,6 +158,8 @@ exports.createBlog = async (req, res) => {
 
       console.log("✅ Blog created successfully! ID:", blog._id);
       console.log("✅ Image saved at:", imageUrl);
+
+      await logActivity(req.body.updatedBy || "Admin User", "Created", "Blog", `Created blog: ${blog.title}`);
 
       return res.status(201).json({
         success: true,
@@ -534,6 +538,7 @@ exports.updateBlog = async (req, res) => {
     if (schemaMarkup !== undefined) blog.schemaMarkup = schemaMarkup.trim();
     if (h1Title !== undefined) blog.h1Title = h1Title.trim();
     if (metaKeywords !== undefined) blog.metaKeywords = metaKeywords.trim();
+    if (req.body.updatedBy !== undefined) blog.updatedBy = req.body.updatedBy;
 
     // Update tags
     if (tags !== undefined) {
@@ -560,6 +565,8 @@ exports.updateBlog = async (req, res) => {
     await blog.save();
 
     console.log("✅ Blog updated successfully:", blog._id);
+
+    await logActivity(req.body.updatedBy || "Admin User", "Updated", "Blog", `Updated blog: ${blog.title}`);
 
     res.status(200).json({
       success: true,
@@ -597,6 +604,7 @@ exports.updateBlog = async (req, res) => {
 exports.deleteBlog = async (req, res) => {
   try {
     const { id } = req.params;
+    const updatedBy = req.query.updatedBy || req.body.updatedBy || "Admin User";
     console.log("🗑️ Delete Blog Request for ID:", id);
 
     const blog = await Blog.findById(id);
@@ -626,6 +634,8 @@ exports.deleteBlog = async (req, res) => {
     await blog.deleteOne();
 
     console.log("✅ Blog deleted successfully:", id);
+
+    await logActivity(updatedBy, "Deleted", "Blog", `Deleted blog: ${blog.title}`);
 
     res.status(200).json({
       success: true,

@@ -1,4 +1,5 @@
 const HowWeWork = require('../models/HowWeWork.model');
+const { logActivity } = require('./activityLog.controller');
 const fs = require('fs').promises;
 const path = require('path');
 
@@ -125,6 +126,8 @@ exports.createOrUpdateHowWeWork = async (req, res) => {
                 lastModifiedBy: req.user?._id || req.admin?._id
             });
         }
+
+        await logActivity(req.body.updatedBy || "Admin User", "Updated", "How We Work", `Updated How We Work page settings`);
 
         res.json({
             success: true,

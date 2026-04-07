@@ -1,4 +1,5 @@
 const Vacancy = require('../models/Vacancy.model');
+const { logActivity } = require('./activityLog.controller');
 
 // ✅ Get all active vacancies (Public - for frontend)
 exports.getActiveVacancies = async (req, res) => {
@@ -155,10 +156,13 @@ exports.createVacancy = async (req, res) => {
       requirements: parsedRequirements || [],
       vacancyCount: vacancyCount || 1,
       status: status || 'active',
-      order: order || 0
+      order: order || 0,
+      updatedBy: req.body.updatedBy || "Admin User"
     });
 
     await vacancy.save();
+
+    await logActivity(req.body.updatedBy || "Admin User", "Created", "Careers", `Created job vacancy: ${title}`);
 
     res.status(201).json({
       success: true,
@@ -208,10 +212,15 @@ exports.updateVacancy = async (req, res) => {
         requirements: parsedRequirements,
         vacancyCount,
         status,
-        order
+        order,
+        updatedBy: req.body.updatedBy || "Admin User"
       },
       { new: true, runValidators: true }
     );
+
+    if (vacancy) {
+      await logActivity(req.body.updatedBy || "Admin User", "Updated", "Careers", `Updated job vacancy: ${vacancy.title}`);
+    }
 
     if (!vacancy) {
       return res.status(404).json({
@@ -248,6 +257,9 @@ exports.deleteVacancy = async (req, res) => {
       });
     }
 
+    const updatedBy = req.query.updatedBy || req.body.updatedBy || "Admin User";
+    await logActivity(updatedBy, "Deleted", "Careers", `Deleted job vacancy: ${vacancy.title}`);
+
     res.status(200).json({
       success: true,
       message: 'Vacancy deleted successfully'
@@ -276,6 +288,9 @@ exports.bulkDeleteVacancies = async (req, res) => {
     }
 
     const result = await Vacancy.deleteMany({ _id: { $in: ids } });
+    
+    const updatedBy = req.body.updatedBy || req.query.updatedBy || "Admin User";
+    await logActivity(updatedBy, "Deleted (Bulk)", "Careers", `Bulk deleted ${result.deletedCount} vacancies`);
 
     res.status(200).json({
       success: true,
@@ -306,11 +321,16 @@ exports.updateVacancyStatus = async (req, res) => {
       });
     }
 
+    const updatedBy = req.body.updatedBy || "Admin User";
     const vacancy = await Vacancy.findByIdAndUpdate(
       req.params.id,
-      { status },
+      { status, updatedBy },
       { new: true }
     );
+    
+    if (vacancy) {
+      await logActivity(updatedBy, "Updated Status", "Careers", `Changed status of ${vacancy.title} to ${status}`);
+    }
 
     if (!vacancy) {
       return res.status(404).json({

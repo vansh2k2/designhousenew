@@ -1,4 +1,5 @@
 const OurTeam = require('../models/OurTeam.model');
+const { logActivity } = require('./activityLog.controller');
 const fs = require('fs').promises;
 const path = require('path');
 
@@ -54,6 +55,8 @@ exports.updateGlobalContent = async (req, res) => {
 
         await data.save();
 
+        await logActivity(req.body.updatedBy || "Admin User", "Updated", "Our Team", `Updated Our Team section content`);
+
         res.status(200).json({
             success: true,
             message: 'Section content updated successfully',
@@ -90,6 +93,8 @@ exports.addMember = async (req, res) => {
 
         data.members.push(newMember);
         await data.save();
+
+        await logActivity(req.body.updatedBy || "Admin User", "Created", "Our Team", `Added team member: ${name}`);
 
         res.status(201).json({
             success: true,
@@ -147,6 +152,8 @@ exports.updateMember = async (req, res) => {
 
         await data.save();
 
+        await logActivity(req.body.updatedBy || "Admin User", "Updated", "Our Team", `Updated team member: ${updateData.name || data.members[memberIndex].name}`);
+
         res.status(200).json({
             success: true,
             message: 'Team member updated successfully',
@@ -187,8 +194,11 @@ exports.deleteMember = async (req, res) => {
             }
         }
 
+        const updatedBy = req.query.updatedBy || req.body.updatedBy || "Admin User";
         data.members.pull(id);
         await data.save();
+
+        await logActivity(updatedBy, "Deleted", "Our Team", `Deleted team member: ${member.name}`);
 
         res.status(200).json({
             success: true,

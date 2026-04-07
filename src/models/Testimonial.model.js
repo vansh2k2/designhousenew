@@ -36,6 +36,11 @@ const testimonialSchema = new mongoose.Schema({
   order: {
     type: Number,
     default: 0
+  },
+  updatedBy: {
+    type: String,
+    default: "Admin User",
+    trim: true
   }
 }, {
   timestamps: true

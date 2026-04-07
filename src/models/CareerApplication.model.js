@@ -34,6 +34,11 @@ const careerApplicationSchema = new mongoose.Schema({
     type: String,
     enum: ['new', 'reviewed', 'shortlisted', 'rejected', 'contacted'],
     default: 'new'
+  },
+  updatedBy: {
+    type: String,
+    default: "Admin User",
+    trim: true
   }
 }, {
   timestamps: true

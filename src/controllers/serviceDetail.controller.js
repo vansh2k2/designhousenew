@@ -1,4 +1,5 @@
 const ServiceDetail = require('../models/ServiceDetail.model');
+const { logActivity } = require('./activityLog.controller');
 const path = require('path');
 const fs = require('fs');
 
@@ -11,6 +12,7 @@ exports.upsertServiceDetail = async (req, res) => {
             serviceName,
             bgAltText,
             bgTitle,
+            bgHighlightTitle,
             title,
             highlightText,
             description,
@@ -36,6 +38,7 @@ exports.upsertServiceDetail = async (req, res) => {
             serviceName,
             bgAltText,
             bgTitle,
+            bgHighlightTitle,
             title,
             highlightText,
             description,
@@ -49,7 +52,8 @@ exports.upsertServiceDetail = async (req, res) => {
                 schemaMarkup,
                 openGraphTags,
                 ogImageAltText
-            }
+            },
+            updatedBy: req.body.updatedBy || "Admin User"
         };
 
         // Handle Background Image
@@ -116,6 +120,8 @@ exports.upsertServiceDetail = async (req, res) => {
         }
         updates.galleryImages = galleryImages;
 
+        let isUpdate = !!serviceDetail;
+        
         if (serviceDetail) {
             serviceDetail = await ServiceDetail.findOneAndUpdate(
                 { serviceName },
@@ -125,6 +131,8 @@ exports.upsertServiceDetail = async (req, res) => {
         } else {
             serviceDetail = await ServiceDetail.create(updates);
         }
+
+        await logActivity(req.body.updatedBy || "Admin User", isUpdate ? "Updated" : "Created", "Service Detail", `${isUpdate ? 'Updated' : 'Created'} service detail for ${serviceName}`);
 
         res.status(200).json({
             success: true,
@@ -166,20 +174,21 @@ exports.getServiceDetailByName = async (req, res) => {
             "Modular LCD Unit": "LCD Unit",
             "Dressing Table": "Dressing Table",
             "Sofas": "Sofas",
-            "Shop In Shops": "Shop in Shops",
+            "Shop In Shops": "Shop In Shops",
             "Office Chairs": "Chairs",
             "Modular Work Station": "Modular Work Station",
             "MD Cabin": "MD Cabin",
-            "Exhibition & Events": "Exhibitions & Events",
-            "Retail Displays": "Retail Display Merchandising",
-            "Acrylic Displays": "Acrylic Display"
+            "Exhibition & Events": "Exhibition & Events",
+            "Retail Display Merchandising": "Retail Display Merchandising",
+            "Chairs": "Chairs",
+            "Acrylic Displays": "Acrylic Displays"
         };
 
         const targetName = serviceToPortfolioMap[name] || name;
         const cleanTerm = targetName.replace(/Images|Portfolio|Services/gi, '').trim();
 
-        // Search for a matching gallery
-        const relatedGallery = await PortfolioGallery.findOne({
+        // Search for all matching galleries to accumulate images from different projects
+        const relatedGalleries = await PortfolioGallery.find({
             $or: [
                 { subCategory: targetName },
                 { title: targetName },
@@ -191,28 +200,39 @@ exports.getServiceDetailByName = async (req, res) => {
             status: "Active"
         }).lean();
 
-        if (relatedGallery) {
-            const images = [];
+        if (relatedGalleries && relatedGalleries.length > 0) {
+            const allImages = [];
+            const seenUrls = new Set();
 
-            // Add main image with normalized path
-            if (relatedGallery.mainImage) {
-                images.push({
-                    url: relatedGallery.mainImage.replace(/\\/g, '/'),
-                    altText: relatedGallery.altText || relatedGallery.title
-                });
-            }
+            relatedGalleries.forEach(gallery => {
+                // Add main image
+                if (gallery.mainImage) {
+                    const url = gallery.mainImage.replace(/\\/g, '/');
+                    if (!seenUrls.has(url)) {
+                        allImages.push({
+                            url,
+                            altText: gallery.altText || gallery.title
+                        });
+                        seenUrls.add(url);
+                    }
+                }
 
-            // Add additional images with normalized paths
-            if (relatedGallery.galleryImages && relatedGallery.galleryImages.length > 0) {
-                relatedGallery.galleryImages.forEach(img => {
-                    images.push({
-                        url: img.image.replace(/\\/g, '/'),
-                        altText: img.altText
+                // Add gallery images
+                if (gallery.galleryImages && gallery.galleryImages.length > 0) {
+                    gallery.galleryImages.forEach(img => {
+                        const url = img.image.replace(/\\/g, '/');
+                        if (!seenUrls.has(url)) {
+                            allImages.push({
+                                url,
+                                altText: img.altText || gallery.title
+                            });
+                            seenUrls.add(url);
+                        }
                     });
-                });
-            }
+                }
+            });
 
-            serviceDetail.portfolioGalleryImages = images;
+            serviceDetail.portfolioGalleryImages = allImages;
         }
 
         res.status(200).json({
@@ -253,6 +273,7 @@ exports.getAllServiceDetails = async (req, res) => {
 exports.deleteServiceDetail = async (req, res) => {
     try {
         const { id } = req.params;
+        const updatedBy = req.query.updatedBy || req.body.updatedBy || "Admin User";
         const serviceDetail = await ServiceDetail.findById(id);
 
         if (!serviceDetail) {
@@ -283,6 +304,8 @@ exports.deleteServiceDetail = async (req, res) => {
         }
 
         await ServiceDetail.findByIdAndDelete(id);
+
+        await logActivity(updatedBy, "Deleted", "Service Detail", `Deleted service detail for ${serviceDetail.serviceName}`);
 
         res.status(200).json({
             success: true,

@@ -23,8 +23,8 @@ const storage = multer.diskStorage({
     } else if (req.baseUrl.includes('/how-we-work')) {
       uploadDir = 'uploads/how-we-work/';
     } else if (req.baseUrl.includes('/portfolio-gallery')) {
-      // Check specific path for gallery images vs main category image
-      if (req.path.includes('/add-images')) {
+      // Check fieldname for gallery images vs hero image
+      if (file.fieldname === 'images') {
         uploadDir = 'uploads/portfolio/gallery/';
       } else {
         uploadDir = 'uploads/portfolio/';
@@ -81,7 +81,7 @@ const upload = multer({
   storage: storage,
   fileFilter: fileFilter,
   limits: {
-    fileSize: 10 * 1024 * 1024 // 10MB limit
+    fileSize: 5 * 1024 * 1024 // 5MB limit
   }
 });
 
@@ -91,7 +91,7 @@ const handleMulterError = (err, req, res, next) => {
     if (err.code === 'LIMIT_FILE_SIZE') {
       return res.status(400).json({
         success: false,
-        message: 'File size too large. Maximum size is 10MB.'
+        message: '❌ File size too large. Maximum allowed size is 100KB. Please compress your image and try again.'
       });
     }
     if (err.code === 'LIMIT_FILE_COUNT') {

@@ -23,6 +23,11 @@ const PortfolioCategorySchema = new mongoose.Schema(
             enum: ["Active", "Inactive"],
             default: "Active",
         },
+        updatedBy: {
+            type: String,
+            default: "Admin User",
+            trim: true
+        },
     },
     { timestamps: true }
 );

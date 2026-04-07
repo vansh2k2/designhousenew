@@ -21,17 +21,9 @@ const portfolioGallerySchema = new mongoose.Schema(
             type: String,
             trim: true,
         },
-        description: {
-            type: String,
-            trim: true,
-        },
         displayNumber: {
             type: String,
             trim: true,
-        },
-        buttonLabel: {
-            type: String,
-            default: "View Details",
         },
         slug: {
             type: String,
@@ -40,9 +32,30 @@ const portfolioGallerySchema = new mongoose.Schema(
             trim: true,
             lowercase: true,
         },
+        bannerTitle: {
+            type: String,
+            trim: true,
+            default: "",
+        },
+        bannerHighlightText: {
+            type: String,
+            trim: true,
+            default: "",
+        },
+        description: {
+            type: String,
+            trim: true,
+            default: "",
+        },
         mainImage: {
             type: String,
-            required: true,
+        },
+        heroImage: {
+            type: String,
+        },
+        heroImageAltText: {
+            type: String,
+            default: "Hero Image",
         },
         altText: {
             type: String,
@@ -59,6 +72,11 @@ const portfolioGallerySchema = new mongoose.Schema(
             enum: ["Active", "Inactive"],
             default: "Active",
         },
+        updatedBy: {
+            type: String,
+            default: "Admin User",
+            trim: true
+        }
     },
     { timestamps: true }
 );

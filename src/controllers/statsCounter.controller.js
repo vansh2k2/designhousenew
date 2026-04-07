@@ -1,4 +1,5 @@
 const StatsCounter = require('../models/StatsCounter.model');
+const { logActivity } = require('./activityLog.controller');
 const path = require('path');
 const fs = require('fs').promises;
 
@@ -49,6 +50,8 @@ exports.addCounterCard = async (req, res, next) => {
         statsData.counters.push(newCard);
         await statsData.save();
 
+        await logActivity(req.body.updatedBy || "Admin User", "Created", "Stats Counter", `Added counter: ${label}`);
+
         res.status(201).json({
             success: true,
             data: statsData
@@ -94,6 +97,8 @@ exports.updateCounterCard = async (req, res, next) => {
 
         await statsData.save();
 
+        await logActivity(req.body.updatedBy || "Admin User", "Updated", "Stats Counter", `Updated counter: ${card.label}`);
+
         res.status(200).json({
             success: true,
             data: statsData
@@ -134,8 +139,11 @@ exports.deleteCounterCard = async (req, res, next) => {
             }
         }
 
+        const updatedBy = req.query.updatedBy || req.body.updatedBy || "Admin User";
         statsData.counters.pull(id);
         await statsData.save();
+
+        await logActivity(updatedBy, "Deleted", "Stats Counter", `Deleted counter: ${card.label}`);
 
         res.status(200).json({
             success: true,

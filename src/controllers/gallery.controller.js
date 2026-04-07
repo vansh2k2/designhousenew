@@ -1,6 +1,7 @@
 const PortfolioCategory = require("../models/PortfolioCategory.model");
 const GalleryItem = require("../models/GalleryItem.model");
 const GalleryImage = require("../models/GalleryImage.model");
+const { logActivity } = require("./activityLog.controller");
 const fs = require("fs");
 const path = require("path");
 
@@ -10,6 +11,8 @@ exports.createCategory = async (req, res) => {
     try {
         const { name, status } = req.body;
         const category = await PortfolioCategory.create({ name, status });
+        
+        await logActivity(req.body.updatedBy || "Admin User", "Created", "Portfolio Gallery", `Created category: ${name}`);
         res.status(201).json({ success: true, data: category });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
@@ -36,7 +39,13 @@ exports.updateCategory = async (req, res) => {
 
 exports.deleteCategory = async (req, res) => {
     try {
+        const updatedBy = req.query.updatedBy || req.body.updatedBy || "Admin User";
+        const category = await PortfolioCategory.findById(req.params.id);
         await PortfolioCategory.findByIdAndDelete(req.params.id);
+        
+        if (category) {
+            await logActivity(updatedBy, "Deleted", "Portfolio Gallery", `Deleted category: ${category.name}`);
+        }
         res.status(200).json({ success: true, message: "Category deleted" });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
@@ -83,6 +92,8 @@ exports.createGalleryItem = async (req, res) => {
             mainImageAltText,
             status
         });
+
+        await logActivity(req.body.updatedBy || "Admin User", "Created", "Portfolio Gallery", `Created gallery item: ${title}`);
 
         res.status(201).json({ success: true, data: galleryItem });
     } catch (error) {
@@ -149,6 +160,11 @@ exports.deleteGalleryItem = async (req, res) => {
             }
 
             await GalleryItem.deleteOne({ _id: item._id });
+        }
+        
+        const updatedBy = req.query.updatedBy || req.body.updatedBy || "Admin User";
+        if (item) {
+            await logActivity(updatedBy, "Deleted", "Portfolio Gallery", `Deleted gallery item: ${item.title}`);
         }
         res.status(200).json({ success: true, message: "Item deleted" });
     } catch (error) {

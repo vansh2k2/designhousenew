@@ -35,6 +35,15 @@ const portfolioGalleryRoutes = require("./src/routes/portfolioGallery.routes"); 
 const serviceDetailRoutes = require("./src/routes/serviceDetail.routes");
 const dashboardRoutes = require("./src/routes/dashboard.routes");
 const sidebarThemeRoutes = require("./src/routes/sidebarTheme.routes");
+const videoPortfolioRoutes = require("./src/routes/videoPortfolio.routes");
+const sitemapRoutes = require("./src/routes/sitemap.routes");
+const emailLogRoutes = require("./src/routes/emailLog.routes");
+const whatsAppLogRoutes = require("./src/routes/whatsAppLog.routes");
+const faqRoutes = require("./src/routes/faq.routes");
+const messageTemplateRoutes = require("./src/routes/messageTemplate.routes");
+const messageTemplateController = require("./src/controllers/messageTemplate.controller");
+const roleRoutes = require("./src/routes/role.routes");
+const roleController = require("./src/controllers/role.controller");
 
 const errorHandler = require("./src/middleware/error.middleware");
 
@@ -113,6 +122,7 @@ app.use("/api/vacancies", vacancyRoutes);
 app.use("/api/career", careerRoutes);
 app.use("/api/about", aboutRoutes);
 app.use("/api/contacts", contactRoutes);
+app.use("/api/otp", require("./src/routes/otp.routes"));
 app.use("/api/featured-services", serviceRoutes);
 app.use("/api/how-we-work", howWeWorkRoutes);
 app.use("/api/stats-counter", statsCounterRoutes);
@@ -131,7 +141,14 @@ app.use("/api/portfolio-gallery", portfolioGalleryRoutes);
 app.use("/api/service-details", serviceDetailRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/sidebar-theme", sidebarThemeRoutes);
-
+app.use("/api/video-portfolio", videoPortfolioRoutes);
+app.use("/api/analytics", require("./src/routes/analytics.routes"));
+app.use("/api/email-logs", emailLogRoutes);
+app.use("/api/whatsapp-logs", whatsAppLogRoutes);
+app.use("/api/faq", faqRoutes);
+app.use("/api/message-templates", messageTemplateRoutes);
+app.use("/api/roles", roleRoutes);
+app.use("/api/activity-logs", require("./src/routes/activityLog.routes"));
 // ✅ SERVE SEO FILES (Sitemap, Robots, etc.) FROM ROOT
 app.use((req, res, next) => {
   const rootFiles = ['.xml', '.txt', '.html'];
@@ -139,6 +156,8 @@ app.use((req, res, next) => {
 
   if (rootFiles.includes(ext)) {
     const filename = path.basename(req.path);
+    // Skip sitemap and robots so they fall through to our dynamic routes
+    if (filename === 'sitemap.xml' || filename === 'robots.txt') return next();
     const filePath = path.join(__dirname, 'uploads/seo', filename);
 
     if (fs.existsSync(filePath)) {
@@ -147,6 +166,8 @@ app.use((req, res, next) => {
   }
   next();
 });
+
+app.use("/", sitemapRoutes);
 
 
 // ==============================
@@ -160,7 +181,12 @@ app.use(errorHandler);
 const PORT = process.env.PORT || 5000;
 
 connectDB()
-  .then(() => {
+  .then(async () => {
+    // ✅ Seed initial templates if they don't exist
+    await messageTemplateController.seedTemplates();
+    // ✅ Seed default roles
+    await roleController.seedDefaultRoles();
+    
     app.listen(PORT, () => {
       console.log(`✅ Server running on port ${PORT}`);
       console.log(`📁 Uploads directory: ${uploadsDir}`);

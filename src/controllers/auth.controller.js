@@ -1,6 +1,7 @@
 const Admin = require("../models/Admin.model");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
+const { logActivity } = require("./activityLog.controller");
 
 // ✅ Admin Register (1 time)
 exports.registerAdmin = async (req, res) => {
@@ -74,6 +75,8 @@ exports.loginAdmin = async (req, res) => {
       { expiresIn: "7d" }
     );
 
+    await logActivity(admin.username, "Logged In", "Auth", `Admin user ${admin.username} logged in`);
+
 
     return res.json({
       success: true,
@@ -83,6 +86,7 @@ exports.loginAdmin = async (req, res) => {
         id: admin._id,
         username: admin.username,
         email: admin.email,
+        role: admin.role,
       },
     });
   } catch (error) {
@@ -100,6 +104,7 @@ exports.verifyAdmin = async (req, res) => {
         id: req.user._id,
         username: req.user.username,
         email: req.user.email,
+        role: req.user.role,
       },
     });
   } catch (error) {

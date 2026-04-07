@@ -34,6 +34,11 @@ const heroImageSchema = new mongoose.Schema({
     isPublished: {
         type: Boolean,
         default: true
+    },
+    updatedBy: {
+        type: String,
+        default: "Admin User",
+        trim: true
     }
 }, { timestamps: true });
 

@@ -19,6 +19,10 @@ const serviceDetailSchema = new mongoose.Schema({
         type: String,
         required: true
     },
+    bgHighlightTitle: {
+        type: String,
+        default: ''
+    },
     title: {
         type: String,
         default: ''
@@ -72,6 +76,11 @@ const serviceDetailSchema = new mongoose.Schema({
             type: String,
             trim: true
         }
+    },
+    updatedBy: {
+        type: String,
+        default: "Admin User",
+        trim: true
     }
 }, { timestamps: true });
 

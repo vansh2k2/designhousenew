@@ -31,6 +31,11 @@ const clientSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    updatedBy: {
+      type: String,
+      default: "Admin User",
+      trim: true
+    },
   },
   {
     timestamps: true,

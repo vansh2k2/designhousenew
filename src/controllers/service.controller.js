@@ -1,4 +1,5 @@
 const FeaturedServices = require('../models/Service.model');
+const { logActivity } = require('./activityLog.controller');
 const fs = require('fs').promises;
 const path = require('path');
 
@@ -45,6 +46,8 @@ exports.updateHeadings = async (req, res) => {
         servicesData.highlightedWord = highlightedWord || servicesData.highlightedWord;
 
         await servicesData.save();
+        
+        await logActivity(req.body.updatedBy || "Admin User", "Updated", "Service", `Updated featured services headings: ${heading}`);
 
         res.status(200).json({
             success: true,
@@ -84,6 +87,8 @@ exports.addServiceCard = async (req, res) => {
 
         servicesData.services.push(newCard);
         await servicesData.save();
+
+        await logActivity(req.body.updatedBy || "Admin User", "Created", "Service", `Added service card: ${title}`);
 
         res.status(201).json({
             success: true,
@@ -125,6 +130,8 @@ exports.updateServiceCard = async (req, res) => {
         });
 
         await servicesData.save();
+
+        await logActivity(req.body.updatedBy || "Admin User", "Updated", "Service", `Updated service card: ${servicesData.services[cardIndex].title}`);
 
         res.status(200).json({
             success: true,
@@ -168,6 +175,8 @@ exports.deleteServiceCard = async (req, res) => {
 
         servicesData.services.pull(id);
         await servicesData.save();
+
+        await logActivity(req.query.updatedBy || req.body.updatedBy || "Admin User", "Deleted", "Service", `Deleted service card: ${card.title}`);
 
         res.status(200).json({
             success: true,

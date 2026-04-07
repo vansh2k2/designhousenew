@@ -2,11 +2,14 @@ const express = require('express');
 const router = express.Router();
 const Admin = require('../models/Admin.model');
 const bcrypt = require('bcryptjs');
+const { logActivity } = require('../controllers/activityLog.controller');
+const { protect, adminOnly } = require('../middleware/auth.middleware');
 
 // ✅ Create Admin (Username + Password only)
-router.post('/create', async (req, res) => {
+router.post('/create', protect, adminOnly, async (req, res) => {
   try {
     const { username, password, role } = req.body;
+    const updatedBy = req.body.updatedBy || req.user?.username || "Admin User";
 
     // Check if admin exists
     const existingAdmin = await Admin.findOne({ username });
@@ -29,6 +32,8 @@ router.post('/create', async (req, res) => {
 
     await admin.save();
 
+    await logActivity(updatedBy, "Created", "Admin Management", `Created new admin user: ${admin.username}`);
+
     res.status(201).json({
       success: true,
       message: 'Admin created successfully',
@@ -49,7 +54,7 @@ router.post('/create', async (req, res) => {
 });
 
 // ✅ Get All Admins
-router.get('/all', async (req, res) => {
+router.get('/all', protect, async (req, res) => {
   try {
     const admins = await Admin.find()
       .select('-password')
@@ -68,10 +73,11 @@ router.get('/all', async (req, res) => {
 });
 
 // ✅ Update Admin
-router.put('/update/:id', async (req, res) => {
+router.put('/update/:id', protect, adminOnly, async (req, res) => {
   try {
     const { id } = req.params;
     const { username, role, status, password } = req.body;
+    const updatedBy = req.body.updatedBy || req.user?.username || "Admin User";
 
     const admin = await Admin.findById(id);
     if (!admin) {
@@ -93,6 +99,8 @@ router.put('/update/:id', async (req, res) => {
 
     await admin.save();
 
+    await logActivity(updatedBy, "Updated", "Admin Management", `Updated admin user: ${admin.username}`);
+
     res.status(200).json({
       success: true,
       message: 'Admin updated successfully',
@@ -112,9 +120,10 @@ router.put('/update/:id', async (req, res) => {
 });
 
 // ✅ Delete Admin
-router.delete('/delete/:id', async (req, res) => {
+router.delete('/delete/:id', protect, adminOnly, async (req, res) => {
   try {
     const { id } = req.params;
+    const updatedBy = req.query.updatedBy || req.body.updatedBy || req.user?.username || "Admin User";
 
     const admin = await Admin.findByIdAndDelete(id);
     if (!admin) {
@@ -123,6 +132,8 @@ router.delete('/delete/:id', async (req, res) => {
         message: 'Admin not found' 
       });
     }
+
+    await logActivity(updatedBy, "Deleted", "Admin Management", `Deleted admin user: ${admin.username}`);
 
     res.status(200).json({
       success: true,
@@ -137,7 +148,7 @@ router.delete('/delete/:id', async (req, res) => {
 });
 
 // ✅ Change Password (Logged-in admin)
-router.put("/change-password", async (req, res) => {
+router.put("/change-password", protect, async (req, res) => {
   try {
     const { adminId, currentPassword, newPassword } = req.body;
 
@@ -169,6 +180,8 @@ router.put("/change-password", async (req, res) => {
     const hashedNewPassword = await bcrypt.hash(newPassword, 10);
     admin.password = hashedNewPassword;
     await admin.save();
+
+    await logActivity(admin.username, "Updated", "Account", `Changed password for ${admin.username}`);
 
     return res.status(200).json({
       success: true,

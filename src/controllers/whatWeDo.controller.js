@@ -1,4 +1,5 @@
 const WhatWeDo = require('../models/WhatWeDo.model');
+const { logActivity } = require('./activityLog.controller');
 const fs = require('fs').promises;
 const path = require('path');
 
@@ -48,6 +49,8 @@ exports.updateGlobalContent = async (req, res) => {
 
         await data.save();
 
+        await logActivity(req.body.updatedBy || "Admin User", "Updated", "What We Do", `Updated What We Do section content`);
+
         res.status(200).json({
             success: true,
             message: 'Section content updated successfully',
@@ -96,6 +99,8 @@ exports.addCard = async (req, res) => {
 
         data.cards.push(newCard);
         await data.save();
+
+        await logActivity(req.body.updatedBy || "Admin User", "Created", "What We Do", `Added service card: ${title}`);
 
         res.status(201).json({
             success: true,
@@ -161,6 +166,8 @@ exports.updateCard = async (req, res) => {
 
         await data.save();
 
+        await logActivity(req.body.updatedBy || "Admin User", "Updated", "What We Do", `Updated service card: ${updateData.title || data.cards[cardIndex].title}`);
+
         res.status(200).json({
             success: true,
             message: 'Service card updated successfully',
@@ -201,8 +208,11 @@ exports.deleteCard = async (req, res) => {
             }
         }
 
+        const updatedBy = req.query.updatedBy || req.body.updatedBy || "Admin User";
         data.cards.pull(id);
         await data.save();
+
+        await logActivity(updatedBy, "Deleted", "What We Do", `Deleted service card: ${card.title}`);
 
         res.status(200).json({
             success: true,

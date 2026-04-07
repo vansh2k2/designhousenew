@@ -113,6 +113,12 @@ const blogSchema = new mongoose.Schema(
     publishedAt: {
       type: Date,
     },
+    
+    updatedBy: {
+      type: String,
+      default: "Admin User",
+      trim: true
+    },
   },
   { timestamps: true }
 );

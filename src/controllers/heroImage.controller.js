@@ -1,4 +1,5 @@
 const HeroImage = require('../models/heroImage.model');
+const { logActivity } = require('./activityLog.controller');
 const path = require('path');
 const fs = require('fs');
 
@@ -81,6 +82,8 @@ exports.createHeroImage = async (req, res) => {
         const data = new HeroImage(inputData);
         await data.save();
 
+        await logActivity(req.body.updatedBy || "Admin User", "Created", "Hero Image", `Created hero image for page: ${inputData.pageName}`);
+
         res.status(201).json({
             success: true,
             message: 'Hero Background Image created successfully',
@@ -120,6 +123,8 @@ exports.updateHeroImage = async (req, res) => {
 
         const data = await HeroImage.findByIdAndUpdate(req.params.id, updateData, { new: true });
 
+        await logActivity(req.body.updatedBy || "Admin User", "Updated", "Hero Image", `Updated hero image for page: ${data.pageName}`);
+
         res.status(200).json({
             success: true,
             message: 'Hero Background Image updated successfully',
@@ -153,7 +158,10 @@ exports.deleteHeroImage = async (req, res) => {
             }
         }
 
+        const updatedBy = req.query.updatedBy || req.body.updatedBy || "Admin User";
         await HeroImage.findByIdAndDelete(req.params.id);
+
+        await logActivity(updatedBy, "Deleted", "Hero Image", `Deleted hero image for page: ${heroImage.pageName}`);
 
         res.status(200).json({
             success: true,

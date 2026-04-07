@@ -1,4 +1,5 @@
 const Testimonial = require('../models/Testimonial.model');
+const { logActivity } = require('./activityLog.controller');
 
 // ✅ Get all active testimonials (Public - for frontend)
 exports.getActiveTestimonials = async (req, res) => {
@@ -138,10 +139,13 @@ exports.createTestimonial = async (req, res) => {
       feedback,
       rating: rating || 5,
       status: status || 'active',
-      order: order || 0
+      order: order || 0,
+      updatedBy: req.body.updatedBy || "Admin User"
     });
 
     await testimonial.save();
+
+    await logActivity(req.body.updatedBy || "Admin User", "Created", "Testimonial", `Added testimonial from: ${name}`);
 
     res.status(201).json({
       success: true,
@@ -173,10 +177,15 @@ exports.updateTestimonial = async (req, res) => {
         feedback,
         rating,
         status,
-        order
+        order,
+        updatedBy: req.body.updatedBy || "Admin User"
       },
       { new: true, runValidators: true }
     );
+
+    if (testimonial) {
+      await logActivity(req.body.updatedBy || "Admin User", "Updated", "Testimonial", `Updated testimonial from: ${testimonial.name}`);
+    }
 
     if (!testimonial) {
       return res.status(404).json({
@@ -213,6 +222,9 @@ exports.deleteTestimonial = async (req, res) => {
       });
     }
 
+    const updatedBy = req.query.updatedBy || req.body.updatedBy || "Admin User";
+    await logActivity(updatedBy, "Deleted", "Testimonial", `Deleted testimonial from: ${testimonial.name}`);
+
     res.status(200).json({
       success: true,
       message: 'Testimonial deleted successfully'
@@ -241,6 +253,9 @@ exports.bulkDeleteTestimonials = async (req, res) => {
     }
 
     const result = await Testimonial.deleteMany({ _id: { $in: ids } });
+
+    const updatedBy = req.body.updatedBy || req.query.updatedBy || "Admin User";
+    await logActivity(updatedBy, "Deleted (Bulk)", "Testimonial", `Bulk deleted ${result.deletedCount} testimonials`);
 
     res.status(200).json({
       success: true,
@@ -271,11 +286,16 @@ exports.updateTestimonialStatus = async (req, res) => {
       });
     }
 
+    const updatedBy = req.body.updatedBy || "Admin User";
     const testimonial = await Testimonial.findByIdAndUpdate(
       req.params.id,
-      { status },
+      { status, updatedBy },
       { new: true }
     );
+    
+    if (testimonial) {
+      await logActivity(updatedBy, "Updated Status", "Testimonial", `Changed status of ${testimonial.name} to ${status}`);
+    }
 
     if (!testimonial) {
       return res.status(404).json({

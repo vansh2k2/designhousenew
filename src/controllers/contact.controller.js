@@ -1,4 +1,6 @@
 const Contact = require("../models/Contact.model");
+const emailService = require("../services/email.service");
+const whatsappService = require("../services/whatsapp.service");
 
 // ✅ Create Contact (PUBLIC - FROM WEBSITE)
 exports.createContact = async (req, res) => {
@@ -36,6 +38,23 @@ exports.createContact = async (req, res) => {
     });
 
     console.log("✅ Contact created successfully! ID:", contact._id);
+
+    // ✅ SEND NOTIFICATIONS (Async)
+    const notificationData = {
+      name: name.trim(),
+      email: email.trim().toLowerCase(),
+      phone: phone.trim(),
+      service: service?.trim() || "General Enquiry",
+      message: message.trim()
+    };
+
+    // Admin notifications (to contact specific admin)
+    emailService.sendContactAdminEmail(notificationData);
+    whatsappService.sendContactAdminWhatsApp(notificationData);
+
+    // User notifications
+    emailService.sendContactUserConfirmationEmail(notificationData);
+    whatsappService.sendContactUserWhatsApp(notificationData);
 
     return res.status(201).json({
       success: true,

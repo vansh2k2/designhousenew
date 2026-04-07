@@ -1,4 +1,5 @@
 const AboutPage = require('../models/About.model');
+const { logActivity } = require('./activityLog.controller');
 const fs = require('fs').promises;
 const path = require('path');
 
@@ -145,6 +146,8 @@ exports.createOrUpdateAboutPage = async (req, res) => {
       });
     }
 
+    await logActivity(req.body.updatedBy || "Admin User", "Updated", "About Us", `Updated About page settings`);
+
     res.json({
       success: true,
       message: 'About page saved successfully',
@@ -189,6 +192,8 @@ exports.addSection = async (req, res) => {
     aboutPage.sections.push(newSection);
     await aboutPage.save();
 
+    await logActivity(req.body.updatedBy || "Admin User", "Created", "About Us", `Added new section: ${type}`);
+
     res.json({
       success: true,
       message: 'Section added successfully',
@@ -208,7 +213,7 @@ exports.addSection = async (req, res) => {
 exports.updateSection = async (req, res) => {
   try {
     const { sectionId } = req.params;
-    const { type, content, title, order, isActive } = req.body;
+    const { type, content, title, order, isActive, heading, subheading, highlightedWord } = req.body;
 
     const aboutPage = await AboutPage.findOne().sort({ createdAt: -1 });
 
@@ -229,8 +234,11 @@ exports.updateSection = async (req, res) => {
     }
 
     if (type) section.type = type;
-    if (content) section.content = content;
+    if (content !== undefined) section.content = content;
     if (title !== undefined) section.title = title;
+    if (heading !== undefined) section.heading = heading;
+    if (subheading !== undefined) section.subheading = subheading;
+    if (highlightedWord !== undefined) section.highlightedWord = highlightedWord;
     if (order !== undefined) section.order = order;
     if (typeof isActive === 'boolean') section.isActive = isActive;
 
@@ -265,8 +273,11 @@ exports.deleteSection = async (req, res) => {
       });
     }
 
+    const updatedBy = req.query.updatedBy || req.body.updatedBy || "Admin User";
     aboutPage.sections.pull(sectionId);
     await aboutPage.save();
+
+    await logActivity(updatedBy, "Deleted", "About Us", `Deleted section from About page`);
 
     res.json({
       success: true,

@@ -1,4 +1,5 @@
 const Seo = require('../models/Seo.model');
+const { logActivity } = require('./activityLog.controller');
 
 // Create new SEO entry
 exports.createSeo = async (req, res) => {
@@ -22,10 +23,13 @@ exports.createSeo = async (req, res) => {
             schemaMarkup,
             canonicalTag,
             ogImage: req.file ? `/uploads/seo/${req.file.filename}` : ogImage,
-            isActive
+            isActive,
+            updatedBy: req.body.updatedBy || "Admin User"
         });
 
         await newSeo.save();
+
+        await logActivity(req.body.updatedBy || "Admin User", "Created", "SEO Meta", `Created SEO tags for ${page}`);
 
         res.status(201).json({
             success: true,
@@ -109,6 +113,7 @@ exports.updateSeo = async (req, res) => {
     try {
         const { id } = req.params;
         const updateData = { ...req.body };
+        updateData.updatedBy = req.body.updatedBy || "Admin User";
 
         if (req.file) {
             updateData.ogImage = `/uploads/seo/${req.file.filename}`;
@@ -122,6 +127,8 @@ exports.updateSeo = async (req, res) => {
                 message: 'SEO entry not found'
             });
         }
+
+        await logActivity(updateData.updatedBy, "Updated", "SEO Meta", `Updated SEO tags for ${updatedSeo.page}`);
 
         res.status(200).json({
             success: true,
@@ -141,6 +148,8 @@ exports.updateSeo = async (req, res) => {
 exports.deleteSeo = async (req, res) => {
     try {
         const { id } = req.params;
+        const updatedBy = req.query.updatedBy || req.body.updatedBy || "Admin User";
+
         const deletedSeo = await Seo.findByIdAndDelete(id);
 
         if (!deletedSeo) {
@@ -149,6 +158,8 @@ exports.deleteSeo = async (req, res) => {
                 message: 'SEO entry not found'
             });
         }
+
+        await logActivity(updatedBy, "Deleted", "SEO Meta", `Deleted SEO tags for ${deletedSeo.page}`);
 
         res.status(200).json({
             success: true,

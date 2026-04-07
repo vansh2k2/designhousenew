@@ -1,4 +1,5 @@
 const SocialMedia = require("../models/SocialMedia.model");
+const { logActivity } = require("./activityLog.controller");
 
 // @desc    Get Social Media Links (Create if not exists)
 // @route   GET /api/social-media
@@ -56,6 +57,8 @@ exports.updateSocialMedia = async (req, res) => {
 
             await socialMedia.save();
         }
+
+        await logActivity(req.body.updatedBy || "Admin User", "Updated", "Social Media", `Updated social media links`);
 
         res.status(200).json({
             success: true,

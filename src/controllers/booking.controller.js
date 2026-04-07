@@ -1,4 +1,6 @@
 const Booking = require('../models/Booking.model');
+const emailService = require('../services/email.service');
+const whatsappService = require('../services/whatsapp.service');
 
 // ✅ Create new booking - PUBLIC ROUTE
 exports.createBooking = async (req, res) => {
@@ -27,8 +29,35 @@ exports.createBooking = async (req, res) => {
     });
 
     await booking.save();
-
     console.log('✅ Booking saved successfully:', booking._id);
+
+    // Send email notification (don't await to avoid slowing down response)
+    emailService.sendBookingEmail({
+      name,
+      email,
+      phone,
+      company,
+      message
+    });
+
+    emailService.sendConfirmationEmail({
+      name,
+      email,
+      message
+    });
+
+    // Send WhatsApp notifications (don't await)
+    whatsappService.sendBookingWhatsApp({
+      name,
+      phone,
+      company,
+      message
+    });
+
+    whatsappService.sendConfirmationWhatsApp({
+      name,
+      phone
+    });
 
     res.status(201).json({
       success: true,

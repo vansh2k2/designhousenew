@@ -1,4 +1,5 @@
 const CustomPage = require("../models/CustomPage.model");
+const { logActivity } = require('./activityLog.controller');
 const path = require("path");
 const fs = require("fs");
 
@@ -37,11 +38,23 @@ exports.createPage = async (req, res) => {
         // Handle gallery images
         const galleryImages = [];
         if (req.files.galleryImages) {
-            const alts = Array.isArray(galleryAlts) ? galleryAlts : [galleryAlts];
-            req.files.galleryImages.forEach((file, index) => {
+            let alts = [];
+            let indices = [];
+            
+            try {
+                alts = galleryAlts ? JSON.parse(galleryAlts) : [];
+                indices = req.body.galleryImageIndices ? JSON.parse(req.body.galleryImageIndices) : [];
+            } catch (e) {
+                // Fallback for non-JSON or missing data
+                alts = Array.isArray(galleryAlts) ? galleryAlts : [galleryAlts];
+                indices = req.files.galleryImages.map((_, i) => i);
+            }
+
+            req.files.galleryImages.forEach((file, i) => {
+                const slotIndex = indices[i] !== undefined ? indices[i] : i;
                 galleryImages.push({
                     url: `/uploads/custom-pages/${file.filename}`,
-                    altTag: alts[index] || ""
+                    altTag: alts[slotIndex] || ""
                 });
             });
         }
@@ -70,10 +83,12 @@ exports.createPage = async (req, res) => {
                 schemaMarkup,
                 openGraphTags
             },
-            status: status || "inactive"
+            status: status || "inactive",
+            updatedBy: req.body.updatedBy || "Admin User"
         };
 
         const page = await CustomPage.create(pageData);
+        await logActivity(req.body.updatedBy || "Admin User", "Created", "Custom Page", `Created page: ${page.title}`);
         res.status(201).json({ success: true, data: page });
     } catch (error) {
         console.error("Create page error:", error);
@@ -98,7 +113,9 @@ exports.getActiveLocations = async (req, res) => {
         let query = { status: "active" };
 
         if (category) {
-            query.serviceCategory = category;
+            // Flexible match: Case-insensitive and optional trailing 's'
+            const baseCategory = category.trim().replace(/s$/i, "");
+            query.serviceCategory = { $regex: new RegExp(`^${baseCategory}s?$`, "i") };
         }
 
         const locations = await CustomPage.find(query)
@@ -149,24 +166,63 @@ exports.updatePage = async (req, res) => {
         }
         if (updates.mainAlt !== undefined) page.mainImage.altTag = updates.mainAlt;
 
-        // Handle gallery update - for simplicity, we'll replace gallery if new images are sent
-        // In a more complex app, we'd handle individual image deletions/adds
-        if (req.files && req.files.galleryImages) {
-            // Delete old gallery images
-            page.galleryImages.forEach(img => {
-                const oldPath = path.join(__dirname, "../../", img.url);
-                if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
-            });
+        // Handle gallery update
+        let alts = [];
+        let existingUrls = [];
+        let indices = [];
 
-            const alts = Array.isArray(updates.galleryAlts) ? updates.galleryAlts : [updates.galleryAlts];
-            page.galleryImages = req.files.galleryImages.map((file, index) => ({
-                url: `/uploads/custom-pages/${file.filename}`,
-                altTag: alts[index] || ""
-            }));
+        try {
+            alts = updates.galleryAlts ? JSON.parse(updates.galleryAlts) : [];
+            existingUrls = updates.existingGalleryUrls ? JSON.parse(updates.existingGalleryUrls) : [];
+            indices = updates.galleryImageIndices ? JSON.parse(updates.galleryImageIndices) : [];
+        } catch (e) {
+            // Fallback for non-JSON or missing data
+            alts = Array.isArray(updates.galleryAlts) ? updates.galleryAlts : [updates.galleryAlts];
+            existingUrls = page.galleryImages.map(img => img.url);
+            indices = req.files && req.files.galleryImages ? req.files.galleryImages.map((_, i) => i) : [];
         }
 
+        // Temporary array for up to 4 potential slots
+        let updatedGallery = [null, null, null, null];
+
+        // 1. Fill in existing images
+        existingUrls.forEach((url, i) => {
+            if (url && i < 4) {
+                updatedGallery[i] = {
+                    url: url.startsWith('/') ? url : '/' + url,
+                    altTag: alts[i] || ""
+                };
+            }
+        });
+
+        // 2. Fill in new uploads
+        if (req.files && req.files.galleryImages) {
+            req.files.galleryImages.forEach((file, i) => {
+                const slotIndex = indices[i];
+                if (slotIndex !== undefined && slotIndex < 4) {
+                    updatedGallery[slotIndex] = {
+                        url: `/uploads/custom-pages/${file.filename}`,
+                        altTag: alts[slotIndex] || ""
+                    };
+                }
+            });
+        }
+
+        // 3. Delete files for images that were removed or replaced
+        const currentUrls = page.galleryImages.map(img => img.url);
+        const nextUrls = updatedGallery.filter(img => img !== null).map(img => img.url);
+        
+        currentUrls.forEach(oldUrl => {
+            if (!nextUrls.includes(oldUrl)) {
+                const oldPath = path.join(__dirname, "../../", oldUrl.replace(/^\//, ""));
+                if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
+            }
+        });
+
+        page.galleryImages = updatedGallery.filter(img => img !== null);
+
         // Update simple fields
-        const fields = ['title', 'highlightedTitle', 'shortDescription', 'postDescription', 'permalink', 'serviceCategory', 'location', 'status'];
+        const fields = ['title', 'highlightedTitle', 'shortDescription', 'postDescription', 'permalink', 'serviceCategory', 'location', 'status', 'updatedBy'];
         fields.forEach(field => {
             if (updates[field] !== undefined) page[field] = updates[field];
         });
@@ -192,6 +248,7 @@ exports.updatePage = async (req, res) => {
         }
 
         await page.save();
+        await logActivity(updates.updatedBy || "Admin User", "Updated", "Custom Page", `Updated page: ${page.title}`);
         res.status(200).json({ success: true, data: page });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
@@ -201,6 +258,7 @@ exports.updatePage = async (req, res) => {
 // DELETE PAGE
 exports.deletePage = async (req, res) => {
     try {
+        const updatedBy = req.query.updatedBy || req.body.updatedBy || "Admin User";
         const page = await CustomPage.findById(req.params.id);
         if (!page) {
             return res.status(404).json({ success: false, message: "Page not found" });
@@ -222,6 +280,7 @@ exports.deletePage = async (req, res) => {
         });
 
         await page.deleteOne();
+        await logActivity(updatedBy, "Deleted", "Custom Page", `Deleted page: ${page.title}`);
         res.status(200).json({ success: true, message: "Page deleted successfully" });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
